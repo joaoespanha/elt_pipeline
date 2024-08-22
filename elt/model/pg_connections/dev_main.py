@@ -8,14 +8,14 @@ import os
 
 load_dotenv()
 
-
-# Define paths and connection details
-directory_path = "elt/data/unprocessed_csvs"  # Directory to check for CSV files
-destination_dir = "elt/data/processed_csvs"  # Destination directory for processed files
-table_name = "raw_csv_orders"  # Replace with your desired table name
-postgres_password = "secret"
-batch_size = 1000  # Define the batch size for loading
-log_file_path = "elt/model/pg_connections/csv_process.log"  # Log file path
+# Definir caminhos e detalhes de conexão
+directory_path = "elt/data/unprocessed_csvs"  # Diretório para verificar arquivos CSV
+destination_dir = (
+    "elt/data/processed_csvs"  # Diretório de destino para arquivos processados
+)
+table_name = "raw_csv_orders"  # Substitua pelo nome da tabela desejada
+batch_size = 1000  # Definir o tamanho do lote para carregamento
+log_file_path = "elt/model/pg_connections/csv_process.log"  # Caminho do arquivo de log
 
 postgres_user = os.getenv("POSTGRES_USER")
 postgres_password = os.getenv("POSTGRES_PASSWORD")
@@ -23,48 +23,50 @@ postgres_host = os.getenv("POSTGRES_HOST")
 postgres_port = os.getenv("POSTGRES_PORT")
 postgres_db = os.getenv("POSTGRES_DB")
 
-
+# Configuração do logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler(log_file_path),  # File logging
-        logging.StreamHandler(),  # Console (terminal) logging
+        logging.FileHandler(log_file_path),  # Logging em arquivo
+        logging.StreamHandler(),  # Logging no console (terminal)
     ],
 )
 
 
 def get_full_pg_data():
     """
-    Get the full data from the PostgreSQL table.
+    Obtenha todos os dados da tabela PostgreSQL.
 
-    :return: DataFrame with all the data from the PostgreSQL table.
+    :return: DataFrame com todos os dados da tabela PostgreSQL.
     """
     try:
-        logging.info("Creating connection to PostgreSQL database")
+        logging.info("Criando conexão com o banco de dados PostgreSQL")
         engine = create_engine(
             f"postgresql://{postgres_user}:{postgres_password}@{postgres_host}:{postgres_port}/{postgres_db}"
         )
 
-        logging.info(f"Reading data from the PostgreSQL table: {table_name}")
+        logging.info(f"Lendo dados da tabela PostgreSQL: {table_name}")
         query = f"SELECT * FROM {table_name}"
         df = pd.read_sql_query(query, engine)
 
-        logging.info(f"Successfully read {len(df)} records from the PostgreSQL table")
+        logging.info(
+            f"Leitura bem-sucedida de {len(df)} registros da tabela PostgreSQL"
+        )
         return df
 
     except Exception as e:
-        logging.error(f"An error occurred during data retrieval: {e}")
-        raise  # Re-raise the exception to handle it later if necessary
+        logging.error(f"Ocorreu um erro durante a recuperação de dados: {e}")
+        raise  # Re-lançar a exceção para tratá-la posteriormente, se necessário
 
 
 def table_exists(engine, table_name):
     """
-    Check if a table exists in the PostgreSQL database.
+    Verifica se uma tabela existe no banco de dados PostgreSQL.
 
-    :param engine: SQLAlchemy engine object.
-    :param table_name: Name of the table to check.
-    :return: True if the table exists, False otherwise.
+    :param engine: Objeto engine do SQLAlchemy.
+    :param table_name: Nome da tabela a verificar.
+    :return: True se a tabela existir, False caso contrário.
     """
     inspector = inspect(engine)
     return inspector.has_table(table_name)
@@ -72,10 +74,10 @@ def table_exists(engine, table_name):
 
 def load_existing_data_from_pg(engine):
     """
-    Load existing order numbers from the PostgreSQL table if it exists.
+    Carrega os números de pedido existentes da tabela PostgreSQL, se existir.
 
-    :param engine: SQLAlchemy engine object.
-    :return: DataFrame of existing order numbers.
+    :param engine: Objeto engine do SQLAlchemy.
+    :return: DataFrame com os números de pedido existentes.
     """
     if table_exists(engine, table_name):
         query = f"SELECT order_number FROM {table_name}"
@@ -83,53 +85,67 @@ def load_existing_data_from_pg(engine):
         return existing_df
     else:
         logging.info(
-            f"Table {table_name} does not exist. Skipping loading of existing data."
+            f"Tabela {table_name} não existe. Pulando carregamento de dados existentes."
         )
         return pd.DataFrame(columns=["order_number"])
 
 
 def filter_new_data(df, existing_df):
-    # Filter out rows in the CSV data that already exist in PostgreSQL
+    """
+    Filtra as linhas no CSV que já existem no PostgreSQL.
+
+    :param df: DataFrame com os dados do CSV.
+    :param existing_df: DataFrame com os dados existentes no PostgreSQL.
+    :return: DataFrame com os novos dados que não estão no PostgreSQL.
+    """
     new_data = df[~df["order_number"].isin(existing_df["order_number"])]
     return new_data
 
 
-# Function to process the CSV file and load it into PostgreSQL in batches
 def process_csv_to_postgres(csv_file, table_name, batch_size):
-    try:
-        logging.info("Starting the process to load data from CSV to PostgreSQL")
+    """
+    Processa o arquivo CSV e carrega os dados no PostgreSQL em lotes.
 
-        # Create a connection to the PostgreSQL database
+    :param csv_file: Caminho do arquivo CSV.
+    :param table_name: Nome da tabela no PostgreSQL.
+    :param batch_size: Tamanho do lote para inserção dos dados.
+    """
+    try:
         logging.info(
-            f"Creating connection to PostgreSQL database at {postgres_host}:{postgres_port}"
+            "Iniciando o processo para carregar dados do CSV para o PostgreSQL"
+        )
+
+        # Criar uma conexão com o banco de dados PostgreSQL
+        logging.info(
+            f"Criando conexão com o banco de dados PostgreSQL em {postgres_host}:{postgres_port}"
         )
         engine = create_engine(
             f"postgresql://{postgres_user}:{postgres_password}@{postgres_host}:{postgres_port}/{postgres_db}"
         )
 
-        # Read the CSV file into a DataFrame
-        logging.info(f"Reading CSV file from {csv_file}")
+        # Ler o arquivo CSV em um DataFrame
+        logging.info(f"Lendo o arquivo CSV de {csv_file}")
         df = pd.read_csv(csv_file)
-        logging.info(f"Successfully read the CSV file with {len(df)} records")
+        logging.info(f"Arquivo CSV lido com sucesso com {len(df)} registros")
 
-        # Load existing data from PostgreSQL
+        # Carregar dados existentes do PostgreSQL
         logging.info(
-            f"Checking if table {table_name} exists and loading existing data if available"
+            f"Verificando se a tabela {table_name} existe e carregando dados existentes, se disponíveis"
         )
         existing_df = load_existing_data_from_pg(engine)
 
-        # Filter out any data that already exists in the PostgreSQL table
-        logging.info("Filtering out records already present in the PostgreSQL table")
+        # Filtrar os dados que já existem na tabela PostgreSQL
+        logging.info("Filtrando registros já presentes na tabela PostgreSQL")
         new_data = filter_new_data(df, existing_df)
 
         if not new_data.empty:
-            # Batch Loading into the PostgreSQL table within a transaction
-            logging.info(f"Starting batch insertion with batch size of {batch_size}")
-            with engine.begin() as connection:  # Explicit transaction management
+            # Carregamento em lotes na tabela PostgreSQL dentro de uma transação
+            logging.info(f"Iniciando inserção em lotes com tamanho de {batch_size}")
+            with engine.begin() as connection:  # Gerenciamento explícito de transação
                 for i in range(0, len(new_data), batch_size):
                     batch_df = new_data[i : i + batch_size]
                     logging.info(
-                        f"Inserting records {i} to {i + len(batch_df)} into the PostgreSQL table: {table_name}"
+                        f"Inserindo registros de {i} a {i + len(batch_df)} na tabela PostgreSQL: {table_name}"
                     )
                     batch_df.to_sql(
                         table_name,
@@ -140,35 +156,35 @@ def process_csv_to_postgres(csv_file, table_name, batch_size):
                     )
 
             logging.info(
-                f"Data successfully loaded into the {table_name} table in PostgreSQL"
+                f"Dados carregados com sucesso na tabela {table_name} no PostgreSQL"
             )
         else:
-            logging.info("No new data to load.")
+            logging.info("Nenhum dado novo para carregar.")
 
     except Exception as e:
-        logging.error(f"An error occurred during processing: {e}")
-        raise  # Re-raise the exception to handle it later if necessary
+        logging.error(f"Ocorreu um erro durante o processamento: {e}")
+        raise  # Re-lançar a exceção para tratá-la posteriormente, se necessário
 
 
 if __name__ == "__main__":
     try:
-        # Record the start time of the script
+        # Registrar o horário de início do script
         start_time = time.time()
 
-        # Check if there are files in the directory and get the first file path
+        # Verificar se há arquivos no diretório e obter o caminho do primeiro arquivo
         csv_file_path = check_for_files(directory_path)
 
         if csv_file_path:
-            # Process the CSV file and load it into PostgreSQL
+            # Processar o arquivo CSV e carregá-lo no PostgreSQL
             process_csv_to_postgres(csv_file_path, table_name, batch_size)
 
-            # Rename and move the processed CSV file
+            # Renomear e mover o arquivo CSV processado
             move_csv_file(csv_file_path, destination_dir)
         else:
-            logging.info("No files found to process.")
+            logging.info("Nenhum arquivo encontrado para processar.")
 
     finally:
-        # Record the end time and calculate the total duration
+        # Registrar o horário de término e calcular a duração total
         end_time = time.time()
         total_time = end_time - start_time
-        logging.info(f"Process completed in {total_time:.2f} seconds")
+        logging.info(f"Processo concluído em {total_time:.2f} segundos")
