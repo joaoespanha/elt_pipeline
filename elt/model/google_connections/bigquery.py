@@ -17,11 +17,8 @@ logging.basicConfig(
     ],
 )
 
-# Caminho para o arquivo JSON da chave de conta de serviço
-json_key_path = os.path.expanduser("~/bigquery_gcp_key.json")
-
 # Inicializa um cliente BigQuery
-client = bigquery.Client.from_service_account_json(json_key_path)
+client = bigquery.Client()
 
 # Especifica o projeto e o dataset do BigQuery
 project_id = os.getenv("BIGQUERY_PROJECT_ID")
