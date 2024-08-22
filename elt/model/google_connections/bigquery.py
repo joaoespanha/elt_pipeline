@@ -25,7 +25,7 @@ client = bigquery.Client.from_service_account_json(json_key_path)
 
 # Especifica o projeto e o dataset do BigQuery
 project_id = os.getenv("BIGQUERY_PROJECT_ID")
-dataset_name = os.getenv("BIGQUERY_DATASET_NAME")
+dataset_name = os.getenv("BIGQUERY_DATASET")
 
 
 def table_exists_in_bigquery(table_name):

@@ -1,21 +1,23 @@
 import pandas as pd
 from sqlalchemy import create_engine, inspect
-from services.utils import move_csv_file, check_for_files
 import logging
-import time
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 
 # Definir caminhos e detalhes de conexão
-directory_path = "elt/data/unprocessed_csvs"  # Diretório para verificar arquivos CSV
-destination_dir = (
-    "elt/data/processed_csvs"  # Diretório de destino para arquivos processados
+directory_path = (
+    "elt/data/unprocessed_parquets"  # Diretório para verificar arquivos parquet
 )
-table_name = "raw_csv_orders"  # Substitua pelo nome da tabela desejada
+destination_dir = (
+    "elt/data/processed_parquets"  # Diretório de destino para arquivos processados
+)
+table_name = "raw_parquet_orders"  # Substitua pelo nome da tabela desejada
 batch_size = 1000  # Definir o tamanho do lote para carregamento
-log_file_path = "elt/model/pg_connections/csv_process.log"  # Caminho do arquivo de log
+log_file_path = (
+    "elt/model/pg_connections/parquet_process.log"  # Caminho do arquivo de log
+)
 
 postgres_user = os.getenv("POSTGRES_USER")
 postgres_password = os.getenv("POSTGRES_PASSWORD")
@@ -92,9 +94,9 @@ def load_existing_data_from_pg(engine):
 
 def filter_new_data(df, existing_df):
     """
-    Filtra as linhas no CSV que já existem no PostgreSQL.
+    Filtra as linhas no parquet que já existem no PostgreSQL.
 
-    :param df: DataFrame com os dados do CSV.
+    :param df: DataFrame com os dados do parquet.
     :param existing_df: DataFrame com os dados existentes no PostgreSQL.
     :return: DataFrame com os novos dados que não estão no PostgreSQL.
     """
@@ -102,17 +104,17 @@ def filter_new_data(df, existing_df):
     return new_data
 
 
-def process_csv_to_postgres(csv_file, table_name, batch_size):
+def process_parquet_to_postgres(parquet_file, table_name, batch_size):
     """
-    Processa o arquivo CSV e carrega os dados no PostgreSQL em lotes.
+    Processa o arquivo parquet e carrega os dados no PostgreSQL em lotes.
 
-    :param csv_file: Caminho do arquivo CSV.
+    :param parquet_file: Caminho do arquivo parquet.
     :param table_name: Nome da tabela no PostgreSQL.
     :param batch_size: Tamanho do lote para inserção dos dados.
     """
     try:
         logging.info(
-            "Iniciando o processo para carregar dados do CSV para o PostgreSQL"
+            "Iniciando o processo para carregar dados do parquet para o PostgreSQL"
         )
 
         # Criar uma conexão com o banco de dados PostgreSQL
@@ -123,10 +125,10 @@ def process_csv_to_postgres(csv_file, table_name, batch_size):
             f"postgresql://{postgres_user}:{postgres_password}@{postgres_host}:{postgres_port}/{postgres_db}"
         )
 
-        # Ler o arquivo CSV em um DataFrame
-        logging.info(f"Lendo o arquivo CSV de {csv_file}")
-        df = pd.read_csv(csv_file)
-        logging.info(f"Arquivo CSV lido com sucesso com {len(df)} registros")
+        # Ler o arquivo parquet em um DataFrame
+        logging.info(f"Lendo o arquivo parquet de {parquet_file}")
+        df = pd.read_parquet(parquet_file)
+        logging.info(f"Arquivo parquet lido com sucesso com {len(df)} registros")
 
         # Carregar dados existentes do PostgreSQL
         logging.info(
@@ -164,27 +166,3 @@ def process_csv_to_postgres(csv_file, table_name, batch_size):
     except Exception as e:
         logging.error(f"Ocorreu um erro durante o processamento: {e}")
         raise  # Re-lançar a exceção para tratá-la posteriormente, se necessário
-
-
-if __name__ == "__main__":
-    try:
-        # Registrar o horário de início do script
-        start_time = time.time()
-
-        # Verificar se há arquivos no diretório e obter o caminho do primeiro arquivo
-        csv_file_path = check_for_files(directory_path)
-
-        if csv_file_path:
-            # Processar o arquivo CSV e carregá-lo no PostgreSQL
-            process_csv_to_postgres(csv_file_path, table_name, batch_size)
-
-            # Renomear e mover o arquivo CSV processado
-            move_csv_file(csv_file_path, destination_dir)
-        else:
-            logging.info("Nenhum arquivo encontrado para processar.")
-
-    finally:
-        # Registrar o horário de término e calcular a duração total
-        end_time = time.time()
-        total_time = end_time - start_time
-        logging.info(f"Processo concluído em {total_time:.2f} segundos")
