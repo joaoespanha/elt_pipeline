@@ -1,6 +1,5 @@
 import logging
 import pandas as pd
-from pandas.tseries.offsets import BDay
 from model.pg_connections.dev_main import get_full_pg_data
 
 # Nome da tabela no PostgreSQL que contém os dados brutos extraídos do CSV
@@ -31,6 +30,9 @@ def transform_data(df):
     :return: Dicionário contendo os DataFrames transformados para Terminals, Orders e Customers.
     """
 
+    df["arrival_date"] = pd.to_datetime(df["arrival_date"], errors="coerce")
+    df["deadline_date"] = pd.to_datetime(df["deadline_date"], errors="coerce")
+
     # Tabela de Terminais
     terminals_df = df[
         [
@@ -39,6 +41,7 @@ def transform_data(df):
             "terminal_type",
         ]
     ]
+    terminals_df = terminals_df.drop_duplicates(subset="terminal_serial_number")
 
     # Tabela de Pedidos (Orders) com a coluna adicional "is_business_day"
     orders_df = df[
@@ -62,8 +65,8 @@ def transform_data(df):
     ]
 
     # Adiciona a coluna "is_business_day" que verifica se a data de chegada é um dia útil
-    orders_df["is_business_day"] = pd.to_datetime(orders_df["arrival_date"]).apply(
-        lambda x: x == x + BDay(0)
+    orders_df["is_business_day"] = orders_df["arrival_date"].apply(
+        lambda x: pd.Timestamp(x).dayofweek < 5 and not pd.isnull(x)
     )
 
     # Tabela de Clientes (Customers)
@@ -73,6 +76,7 @@ def transform_data(df):
             "customer_phone",
         ]
     ]
+    customers_df = customers_df.drop_duplicates(subset="customer_id")
 
     # Dicionário que agrupa as tabelas resultantes da transformação
     result_tables = {
@@ -83,18 +87,3 @@ def transform_data(df):
 
     print("Tabelas criadas com sucesso")
     return result_tables
-
-
-# Exemplo de uso
-if __name__ == "__main__":
-    # Extrai os dados completos da tabela PostgreSQL usando a função get_full_pg_data
-    df = get_full_pg_data()
-
-    # Realiza a transformação dos dados
-    result_tables = transform_data(df)
-
-    # Exibe as tabelas resultantes da transformação
-    print(result_tables)
-
-    # Registra no log que a transformação dos dados foi concluída com sucesso
-    logging.info("Transformação dos dados concluída com sucesso.")
