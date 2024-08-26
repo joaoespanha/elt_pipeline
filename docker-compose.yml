@@ -61,6 +61,7 @@ services:
       - AIRFLOW_WWW_USER_USERNAME=airflow
       - AIRFLOW_WWW_USER_PASSWORD=password
       - AIRFLOW__WEBSERVER__SECRET_KEY=secret
+      - GOOGLE_APPLICATION_CREDENTIALS=/root/bigquery_gcp_key.json
     ports:
       - "8080:8080"
     command: webserver
@@ -93,6 +94,7 @@ services:
       - AIRFLOW_WWW_USER_USERNAME=airflow
       - AIRFLOW_WWW_USER_PASSWORD=password
       - AIRFLOW_HOME=/opt/airflow
+      - GOOGLE_APPLICATION_CREDENTIALS=/root/bigquery_gcp_key.json
     command: scheduler
 
 networks:
