@@ -1,6 +1,5 @@
 import logging
 import pandas as pd
-from model.pg_connections.dev_main import get_full_pg_data
 
 # Nome da tabela no PostgreSQL que contém os dados brutos extraídos do CSV
 table_name = "raw_csv_orders"  # Substitua pelo nome desejado da tabela
