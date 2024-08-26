@@ -65,12 +65,13 @@ def get_existing_data(table_name, column_name):
         return []
 
 
-def load_dataframes_to_bigquery(dfs):
+def load_dataframes_to_bigquery(dfs, batch_size=50000):
     """
     Carrega múltiplos DataFrames do Pandas para suas respectivas tabelas no BigQuery,
     garantindo que nenhum registro duplicado seja inserido.
 
     :param dfs: Dicionário onde as chaves são os nomes das tabelas e os valores são DataFrames do Pandas a serem carregados.
+    :param batch_size: Número de linhas a serem processadas por vez (padrão: 50000).
     """
     for table_name, df in dfs.items():
         if table_name == "orders":
@@ -93,16 +94,17 @@ def load_dataframes_to_bigquery(dfs):
             existing_order_numbers = get_existing_data("order_proofs", "order_number")
             df = df[~df["order_number"].isin(existing_order_numbers)]
 
-        # Carrega o DataFrame filtrado para o BigQuery usando pandas_gbq
+        # Carrega o DataFrame filtrado para o BigQuery em lotes
         if not df.empty:
             pandas_gbq.to_gbq(
                 df,
                 destination_table=f"{dataset_name}.{table_name}",
                 project_id=client.project,
                 if_exists="append",
+                chunksize=batch_size,
             )
             logging.info(
-                f"Dados carregados com sucesso em {dataset_name}.{table_name}."
+                f"Lote de dados carregado com sucesso em {dataset_name}.{table_name}."
             )
         else:
             logging.info(
