@@ -36,32 +36,6 @@ logging.basicConfig(
 )
 
 
-def get_full_pg_data():
-    """
-    Obtenha todos os dados da tabela PostgreSQL.
-
-    :return: DataFrame com todos os dados da tabela PostgreSQL.
-    """
-    try:
-        logging.info("Criando conexão com o banco de dados PostgreSQL")
-        engine = create_engine(
-            f"postgresql://{postgres_user}:{postgres_password}@{postgres_host}:{postgres_port}/{postgres_db}"
-        )
-
-        logging.info(f"Lendo dados da tabela PostgreSQL: {table_name}")
-        query = f"SELECT * FROM {table_name}"
-        df = pd.read_sql_query(query, engine)
-
-        logging.info(
-            f"Leitura bem-sucedida de {len(df)} registros da tabela PostgreSQL"
-        )
-        return df
-
-    except Exception as e:
-        logging.error(f"Ocorreu um erro durante a recuperação de dados: {e}")
-        raise  # Re-lançar a exceção para tratá-la posteriormente, se necessário
-
-
 def table_exists(engine, table_name):
     """
     Verifica se uma tabela existe no banco de dados PostgreSQL.
@@ -162,6 +136,8 @@ def process_parquet_to_postgres(parquet_file, table_name, batch_size):
             )
         else:
             logging.info("Nenhum dado novo para carregar.")
+
+        return new_data
 
     except Exception as e:
         logging.error(f"Ocorreu um erro durante o processamento: {e}")
